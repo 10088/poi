@@ -38,9 +38,10 @@ plugins {
     id 'com.dorongold.task-tree' version '2.1.0'
     id 'org.nosphere.apache.rat' version '0.7.1'
     id 'distribution'
-    id "com.github.spotbugs" version '5.0.9'
+    id "com.github.spotbugs" version '5.0.12'
     id 'de.thetaphi.forbiddenapis' version '3.3'
     id 'com.github.jk1.dependency-license-report' version '2.0'
+    id 'org.cyclonedx.bom' version '1.7.1'
 }
 
 repositories {
@@ -94,7 +95,7 @@ configurations {
 }
 
 dependencies {
-    antLibs("org.junit.jupiter:junit-jupiter:5.8.2")
+    antLibs("org.junit.jupiter:junit-jupiter:5.9.0")
     antLibs("org.apache.ant:ant-junitlauncher:1.10.12")
 }
 
@@ -104,7 +105,7 @@ ant.taskdef(name: "junit",
 
 
 wrapper {
-    gradleVersion = '7.4.2'
+    gradleVersion = '7.5'
 }
 
 task adjustWrapperPropertiesFile {
@@ -118,12 +119,16 @@ task adjustWrapperPropertiesFile {
 }
 wrapper.finalizedBy adjustWrapperPropertiesFile
 
+group = 'org.apache.poi'
+
 /**
  Define properties for all projects, including this one
  */
 allprojects {
 //    apply plugin: 'eclipse'
     apply plugin: 'idea'
+
+    version = '5.2.4-SNAPSHOT'
 }
 
 /**
@@ -138,22 +143,21 @@ subprojects {
     apply plugin: 'de.thetaphi.forbiddenapis'
     apply plugin: 'com.github.spotbugs'
 
-    version = '5.2.3-SNAPSHOT'
     ext {
         bouncyCastleVersion = '1.70'
         commonsCodecVersion = '1.15'
         commonsCompressVersion = '1.21'
         commonsIoVersion = '2.11.0'
         commonsMathVersion = '3.6.1'
-        junitVersion = '5.8.2'
-        log4jVersion = '2.18.0'
-        mockitoVersion = '4.6.1'
+        junitVersion = '5.9.0'
+        log4jVersion = '2.19.0'
+        mockitoVersion = '4.8.0'
         hamcrestVersion = '2.2'
-        xmlbeansVersion = '5.1.0'
+        xmlbeansVersion = '5.1.1'
         batikVersion = '1.14'
-        graphics2dVersion = '0.38'
+        graphics2dVersion = '0.41'
         pdfboxVersion = '2.0.26'
-        saxonVersion = '11.3'
+        saxonVersion = '11.4'
         apiGuardianVersion = '1.1.2'
 
         jdkVersion = (project.properties['jdkVersion'] ?: '8') as int
@@ -174,8 +178,8 @@ subprojects {
         all {
             resolutionStrategy {
                 force "commons-io:commons-io:${commonsIoVersion}"
-                force 'org.slf4j:slf4j-api:1.7.36'
-                force 'com.fasterxml.woodstox:woodstox-core:6.3.0'
+                force 'org.slf4j:slf4j-api:2.0.1'
+                force 'com.fasterxml.woodstox:woodstox-core:6.3.1'
             }
         }
     }
@@ -185,15 +189,11 @@ subprojects {
         options.compilerArgs << '-Xlint:unchecked'
         options.deprecation = true
         options.incremental = true
-
-        onlyIf {
-            (name != "compileJava9" && name != "compileTest9") // || jdkVersion > 8
-        }
     }
 
     repositories {
         mavenCentral()
-        //maven { url 'https://repository.apache.org/content/repositories/staging' }
+        maven { url 'https://repository.apache.org/content/repositories/staging' }
     }
 
     dependencies {
@@ -201,10 +201,6 @@ subprojects {
         testImplementation "org.mockito:mockito-core:${mockitoVersion}"
         testImplementation "org.hamcrest:hamcrest:${hamcrestVersion}"
         testImplementation "org.apache.logging.log4j:log4j-core:${log4jVersion}"
-    }
-
-    task wrapper(type: Wrapper){
-        gradleVersion = '7.4.2'
     }
 
     java {
@@ -220,7 +216,7 @@ subprojects {
         failOnError = true
         maxMemory = "1024M"
         javadocTool = javaToolchains.javadocToolFor {
-            languageVersion = JavaLanguageVersion.of(Math.max(11,jdkVersion))
+            languageVersion = JavaLanguageVersion.of(jdkVersion >= 17 ? 17 : 11)
         }
 
         doFirst {
@@ -230,6 +226,7 @@ subprojects {
                 links 'https://poi.apache.org/apidocs/dev/'
                 links 'https://docs.oracle.com/javase/8/docs/api/'
                 links 'https://xmlbeans.apache.org/docs/5.0.0/'
+                links 'https://commons.apache.org/proper/commons-compress/apidocs/'
                 use = true
                 splitIndex = true
                 source = "1.8"
@@ -485,13 +482,13 @@ subprojects {
                             name = 'POI Users List'
                             subscribe = 'user-subscribe@poi.apache.org'
                             unsubscribe = 'user-unsubscribe@poi.apache.org'
-                            archive = 'http://mail-archives.apache.org/mod_mbox/poi-user/'
+                            archive = 'https://lists.apache.org/list.html?user@poi.apache.org'
                         }
                         mailingList {
                             name = 'POI Developer List'
                             subscribe = 'dev-subscribe@poi.apache.org'
                             unsubscribe = 'dev-unsubscribe@poi.apache.org'
-                            archive = 'http://mail-archives.apache.org/mod_mbox/poi-dev/'
+                            archive = 'https://lists.apache.org/list.html?dev@poi.apache.org'
                         }
                     }
 
@@ -506,6 +503,20 @@ subprojects {
                     organization {
                         name = 'Apache Software Foundation'
                         url = 'http://www.apache.org/'
+                    }
+
+                    issueManagement {
+                        system = 'bugzilla'
+                        url = 'https://bz.apache.org/bugzilla'
+                    }
+
+                    developers {
+                        developer {
+                            name = 'POI Team'
+                            id = 'poi'
+                            email = 'user@poi.apache.org'
+                            organization = 'Apache POI'
+                        }
                     }
 
                     withXml {
@@ -863,3 +874,22 @@ binDistZip.finalizedBy fixDistDir
 binDistTar.finalizedBy fixDistDir
 srcDistZip.finalizedBy fixDistDir
 srcDistTar.finalizedBy fixDistDir
+
+cyclonedxBom {
+    // includeConfigs is the list of configuration names to include when generating the BOM (leave empty to include every configuration)
+    includeConfigs = ["runtimeClasspath"]
+    // skipConfigs is a list of configuration names to exclude when generating the BOM
+    //skipConfigs = ["compileClasspath", "testCompileClasspath"]
+    // Specified the type of project being built. Defaults to 'library'
+    projectType = "library"
+    // Specified the version of the CycloneDX specification to use. Defaults to 1.4.
+    schemaVersion = "1.4"
+    // Boms destination directory (defaults to build/reports)
+    destination = file("build/reports")
+    // The file name for the generated BOMs (before the file format suffix). Defaults to 'bom'
+    outputName = "pom-${project.version}.bom"
+    // The file format generated, can be xml, json or all for generating both
+    outputFormat = "xml"
+    // Exclude BOM Serial Number
+    includeBomSerialNumber = true
+}
